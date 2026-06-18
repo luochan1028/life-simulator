@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+
+# JSON 模拟结果（临时输出文件）
+*_results.json
+*_模拟结果.json
+周涛_模拟结果.json
+李雷_results.json
+王小明_results.json
+韩梅梅_results.json
+初中_vs_本科_在5国.json
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 日志
+*.log

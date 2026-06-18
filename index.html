@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人生模拟器 · 命运模型 v2 · 中国宏观</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0a0e27;
+    color: #e4e6ff;
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  /* ===== 顶部标题 ===== */
+  header {
+    background: linear-gradient(135deg, #1a1f4e 0%, #2d1b69 50%, #1a1f4e 100%);
+    padding: 24px 32px;
+    border-bottom: 1px solid #3b3b7a;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #ffd700, #ff6b9d, #c06cff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p {
+    font-size: 13px;
+    color: #a0a4ff;
+    margin-top: 4px;
+  }
+
+  /* ===== 主布局 ===== */
+  .container {
+    display: grid;
+    grid-template-columns: 340px 1fr 360px;
+    gap: 16px;
+    padding: 16px;
+    min-height: calc(100vh - 90px);
+  }
+
+  .panel {
+    background: rgba(26, 31, 78, 0.7);
+    border: 1px solid #3b3b7a;
+    border-radius: 12px;
+    padding: 18px;
+    overflow-y: auto;
+    max-height: calc(100vh - 130px);
+  }
+
+  .panel h2 {
+    font-size: 15px;
+    margin-bottom: 14px;
+    color: #ffd700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel h2::before {
+    content: "";
+    width: 4px;
+    height: 16px;
+    background: linear-gradient(180deg, #ffd700, #ff6b9d);
+    border-radius: 2px;
+  }
+
+  .panel-group {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed #3b3b7a;
+  }
+  .panel-group:last-child { border-bottom: none; }
+  .panel-group h3 {
+    font-size: 13px;
+    color: #a0a4ff;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #c0c4f0;
+    margin-bottom: 4px;
+  }
+  .field label span:last-child {
+    color: #ffd700;
+    font-weight: 600;
+  }
+  .field input[type=range] {
+    width: 100%;
+    height: 4px;
+    background: #2a2f5e;
+    border-radius: 2px;
+    appearance: none;
+    outline: none;
+  }
+  .field input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: linear-gradient(135deg, #ffd700, #ff6b9d);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+  }
+
+  .field select, .field input[type=text], .field input[type=number] {
+    width: 100%;
+    padding: 8px 10px;
+    background: #2a2f5e;
+    border: 1px solid #3b3b7a;
+    border-radius: 6px;
+    color: #e4e6ff;
+    font-size: 13px;
+    outline: none;
+  }
+  .field select:focus, .field input:focus {
+    border-color: #ffd700;
+  }
+
+  /* ===== 中间主图区 ===== */
+  .main-panel {
+    background: rgba(26, 31, 78, 0.7);
+    border: 1px solid #3b3b7a;
+    border-radius: 12px;
+    padding: 18px;
+    overflow-y: auto;
+    max-height: calc(100vh - 130px);
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 8px 18px;
+    background: linear-gradient(135deg, #ffd700, #ff6b9d);
+    border: none;
+    border-radius: 6px;
+    color: #0a0e27;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255, 107, 157, 0.4);
+  }
+  button.secondary {
+    background: #2a2f5e;
+    color: #e4e6ff;
+    border: 1px solid #3b3b7a;
+  }
+  button.secondary:hover {
+    background: #3a3f7e;
+    box-shadow: none;
+  }
+
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .chart-card {
+    background: rgba(42, 47, 94, 0.5);
+    border: 1px solid #3b3b7a;
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 210px;
+  }
+  .chart-card h3 {
+    font-size: 13px;
+    color: #a0a4ff;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .chart-canvas { position: relative; height: 170px; }
+
+  /* ===== 关键指标卡片 ===== */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .kpi {
+    background: linear-gradient(135deg, rgba(42, 47, 94, 0.6), rgba(26, 31, 78, 0.6));
+    border: 1px solid #3b3b7a;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .kpi .label { font-size: 11px; color: #a0a4ff; margin-bottom: 4px; }
+  .kpi .value {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #ffd700, #ff6b9d);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .kpi .sub { font-size: 11px; color: #8888a8; margin-top: 2px; }
+
+  /* ===== 策略对比 ===== */
+  .strategy-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 90px 90px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 4px;
+    border-bottom: 1px dashed #3b3b7a;
+    font-size: 12px;
+  }
+  .strategy-row:first-child {
+    color: #a0a4ff;
+    font-weight: 600;
+  }
+  .strategy-row .name { color: #e4e6ff; font-weight: 600; }
+  .strategy-row .bar-container {
+    background: #2a2f5e;
+    border-radius: 4px;
+    height: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .strategy-row .bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffd700, #ff6b9d);
+    border-radius: 4px;
+    transition: width 0.4s;
+  }
+  .strategy-row .bar.blue {
+    background: linear-gradient(90deg, #4fd1ff, #c06cff);
+  }
+  .strategy-row .num { text-align: right; color: #ffd700; font-family: monospace; }
+
+  /* ===== 关键事件时间线 ===== */
+  .timeline {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(42, 47, 94, 0.3);
+    border-radius: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .timeline-item {
+    display: flex;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 12px;
+    border-bottom: 1px dotted #3b3b7a;
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-item .year { color: #ffd700; font-weight: 600; min-width: 50px; }
+  .timeline-item .event { color: #e4e6ff; }
+  .timeline-item .tag {
+    padding: 1px 6px;
+    background: #3b3b7a;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-right: 4px;
+  }
+  .timeline-item.crisis .tag { background: #ff6b6b; color: #fff; }
+  .timeline-item.health .tag { background: #4fd1ff; color: #0a0e27; }
+  .timeline-item.career .tag { background: #c06cff; color: #fff; }
+  .timeline-item.wealth .tag { background: #ffd700; color: #0a0e27; }
+
+  /* ===== 滚动条美化 ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1a1f4e; }
+  ::-webkit-scrollbar-thumb { background: #3b3b7a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #5b5b9a; }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 1400px) {
+    .container { grid-template-columns: 320px 1fr; }
+    .right-panel { grid-column: 1 / -1; max-height: none; }
+  }
+  @media (max-width: 900px) {
+    .container { grid-template-columns: 1fr; }
+    .chart-row { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ===== 小贴士 ===== */
+  .tip {
+    font-size: 11px;
+    color: #8888a8;
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(255, 215, 0, 0.08);
+    border-left: 2px solid #ffd700;
+    border-radius: 4px;
+  }
+
+  /* ===== 宏观参数双列 ===== */
+  .macro-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+  }
+
+  .legend-strat {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    margin-top: 6px;
+    color: #a0a4ff;
+  }
+  .legend-strat .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ===== 名人分析模块样式 ===== */
+  .fork-card {
+    background: rgba(42, 47, 94, 0.4);
+    border: 1px solid #3b3b7a;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .fork-card h4 {
+    font-size: 13px;
+    color: #ffd700;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .fork-path {
+    padding: 8px;
+    border-radius: 6px;
+    margin-top: 6px;
+  }
+  .fork-path.real { background: rgba(255, 215, 0, 0.08); border-left: 3px solid #ffd700; }
+  .fork-path.alt { background: rgba(79, 209, 255, 0.08); border-left: 3px solid #4fd1ff; }
+  .fork-path .label { font-size: 11px; color: #a0a4ff; margin-bottom: 4px; font-weight: 600; }
+  .fork-path select, .fork-path input[type=text] {
+    width: 100%;
+    padding: 6px 8px;
+    background: #1a1f4e;
+    border: 1px solid #3b3b7a;
+    border-radius: 4px;
+    color: #e4e6ff;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 4px;
+  }
+
+  .celebrity-card .chart-card { border: 1px dashed #3b3b7a; background: rgba(26, 31, 78, 0.3); }
+
+  .ranking-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 80px 80px 80px 90px;
+    gap: 8px;
+    padding: 8px 4px;
+    border-bottom: 1px dotted #3b3b7a;
+    align-items: center;
+    font-size: 12px;
+  }
+  .ranking-row.header { color: #a0a4ff; font-weight: 600; border-bottom: 1px solid #3b3b7a; }
+  .ranking-row.best { background: rgba(255, 215, 0, 0.1); }
+  .ranking-row.real { background: rgba(255, 107, 157, 0.08); }
+  .ranking-row .rank { font-weight: 700; color: #ffd700; text-align: center; }
+  .ranking-row .path-name { color: #e4e6ff; font-weight: 600; }
+  .ranking-row .num { text-align: right; font-family: monospace; }
+  .ranking-row .tag-mini {
+    display: inline-block;
+    padding: 1px 6px;
+    background: #3b3b7a;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-right: 4px;
+  }
+
+  .fork-result {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(42, 47, 94, 0.3);
+    border-left: 3px solid #3b3b7a;
+  }
+  .fork-result.correct { border-left-color: #ffd700; }
+  .fork-result.wrong { border-left-color: #ff6b9d; }
+  .fork-result.neutral { border-left-color: #8888a8; }
+  .fork-result .title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #e4e6ff;
+  }
+  .fork-result .desc { font-size: 11px; color: #a0a4ff; margin-bottom: 6px; }
+  .fork-result .compare-line {
+    font-size: 12px;
+    color: #e4e6ff;
+    margin: 3px 0;
+  }
+  .fork-result .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .badge.ok { background: #ffd700; color: #0a0e27; }
+  .badge.bad { background: #ff6b9d; color: #fff; }
+  .badge.meh { background: #8888a8; color: #fff; }
+
+  .advice-item {
+    padding: 8px 10px;
+    background: rgba(255, 215, 0, 0.05);
+    border-left: 2px solid #ffd700;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #e4e6ff;
+    line-height: 1.6;
+  }
+  .advice-item strong { color: #ffd700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>人生模拟器 · 命运模型 v2</h1>
+  <p>把你自己放进中国的宏观经济与时代浪潮里，看不同选择会带来怎样的终局</p>
+</header>
+
+<div class="container">
+
+  <!-- ============ 左侧：人物画像 ============ -->
+  <aside class="panel" id="left-panel">
+    <h2>🧑 人物画像</h2>
+
+    <div class="panel-group">
+      <h3>基本信息</h3>
+      <div class="field">
+        <label>姓名 / 代号 <span id="out-name">小明</span></label>
+        <input type="text" id="in-name" value="小明">
+      </div>
+      <div class="field">
+        <label>出生年份 <span id="out-birth">2007</span></label>
+        <input type="number" id="in-birth" value="2007" min="1960" max="2020">
+      </div>
+      <div class="field">
+        <label>最高学历</label>
+        <select id="in-edu">
+          <option value="文盲">文盲</option>
+          <option value="小学">小学</option>
+          <option value="初中" selected>初中</option>
+          <option value="高中">高中</option>
+          <option value="职高">职高</option>
+          <option value="大专">大专</option>
+          <option value="本科">本科</option>
+          <option value="硕士">硕士</option>
+          <option value="博士">博士</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>出身家庭</label>
+        <select id="in-family">
+          <option value="贫困">贫困家庭</option>
+          <option value="普通" selected>普通家庭</option>
+          <option value="中产">中产家庭</option>
+          <option value="富裕">富裕家庭</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-group">
+      <h3>个人特质（0-100）</h3>
+      <div class="field">
+        <label>智商 / 学习能力 <span id="out-iq">60</span></label>
+        <input type="range" id="in-iq" min="0" max="100" value="60">
+      </div>
+      <div class="field">
+        <label>野心 / 进取心 <span id="out-ambition">60</span></label>
+        <input type="range" id="in-ambition" min="0" max="100" value="60">
+      </div>
+      <div class="field">
+        <label>自律 <span id="out-discipline">60</span></label>
+        <input type="range" id="in-discipline" min="0" max="100" value="60">
+      </div>
+      <div class="field">
+        <label>逆商 / 抗挫折 <span id="out-resilience">60</span></label>
+        <input type="range" id="in-resilience" min="0" max="100" value="60">
+      </div>
+      <div class="field">
+        <label>社交能力 <span id="out-social">55</span></label>
+        <input type="range" id="in-social" min="0" max="100" value="55">
+      </div>
+      <div class="field">
+        <label>风险偏好 <span id="out-risk">50</span></label>
+        <input type="range" id="in-risk" min="0" max="100" value="50">
+      </div>
+    </div>
+
+    <div class="panel-group">
+      <h3>健康与医疗资源</h3>
+      <div class="field">
+        <label>健康基线（年轻时状态）<span id="out-h0">75</span></label>
+        <input type="range" id="in-h0" min="0" max="100" value="75">
+      </div>
+      <div class="field">
+        <label>就医条件（医保/经济/医院可及）<span id="out-medical">60</span></label>
+        <input type="range" id="in-medical" min="0" max="100" value="60">
+      </div>
+      <div class="field">
+        <label>遇到好医生的运气（0-100）<span id="out-luck-doctor">50</span></label>
+        <input type="range" id="in-luck-doctor" min="0" max="100" value="50">
+      </div>
+      <div class="field">
+        <label>慢性病 / 遗传风险 <span id="out-heredity">30</span></label>
+        <input type="range" id="in-heredity" min="0" max="100" value="30">
+      </div>
+      <div class="tip">
+        💡 「康复中心」场景：低学历 + 低就医条件 + 高遗传风险 的组合，
+        在中年后会显著拉低健康曲线。你可以把自己的真实情况输入。
+      </div>
+    </div>
+
+    <div class="panel-group">
+      <h3>人生策略</h3>
+      <div class="field">
+        <label>当前策略</label>
+        <select id="in-strategy">
+          <option value="stable">稳定保守</option>
+          <option value="hard" selected>努力奋斗</option>
+          <option value="radical">激进冒险（创业/炒币）</option>
+          <option value="balanced">平衡生活</option>
+          <option value="lieflat">躺平低欲望</option>
+        </select>
+      </div>
+      <div class="tip">
+        💡 你可以同时跑 5 种策略做对比，看哪一种策略在"你这个人"身上最优 —
+        最优策略不一定对每个人都一样。
+      </div>
+    </div>
+
+    <button id="btn-run" style="width:100%">▶ 开始模拟一生</button>
+  </aside>
+
+  <!-- ============ 中间：图表 ============ -->
+  <main class="main-panel">
+
+    <!-- KPI 4 个关键指标 -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi">
+        <div class="label">终局财富（元）</div>
+        <div class="value" id="kpi-wealth">—</div>
+        <div class="sub" id="kpi-wealth-peak">—</div>
+      </div>
+      <div class="kpi">
+        <div class="label">平均幸福度</div>
+        <div class="value" id="kpi-happy">—</div>
+        <div class="sub" id="kpi-happy-range">—</div>
+      </div>
+      <div class="kpi">
+        <div class="label">一生失业年数</div>
+        <div class="value" id="kpi-unemp">—</div>
+        <div class="sub" id="kpi-unemp-sub">—</div>
+      </div>
+      <div class="kpi">
+        <div class="label">中年后 AI 替代风险</div>
+        <div class="value" id="kpi-ai">—</div>
+        <div class="sub" id="kpi-ai-sub">—</div>
+      </div>
+    </div>
+
+    <!-- 主控制按钮 -->
+    <div class="controls">
+      <button id="btn-compare">🔀 对同一人跑 5 种策略做对比</button>
+      <button id="btn-edu-test" class="secondary">🎓 测学历：文盲→硕士</button>
+      <button id="btn-reset" class="secondary">↺ 恢复默认</button>
+    </div>
+
+    <!-- 四个主图表 -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>💰 财富积累曲线（按年龄）</h3>
+        <div class="chart-canvas"><canvas id="chart-wealth"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>💼 职业等级 / 收入能力</h3>
+        <div class="chart-canvas"><canvas id="chart-career"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>❤️ 健康状况（含就医、康复、慢性病）</h3>
+        <div class="chart-canvas"><canvas id="chart-health"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>😊 幸福感（收入+健康+社交+安全的综合）</h3>
+        <div class="chart-canvas"><canvas id="chart-happy"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>🤖 AI 替代风险（按年龄与学历）</h3>
+        <div class="chart-canvas"><canvas id="chart-ai"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>📈 中国宏观经济指标（时代对你的推力）</h3>
+        <div class="chart-canvas"><canvas id="chart-macro"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 人生关键事件时间线 -->
+    <div class="chart-card">
+      <h3>📜 你的人生关键事件</h3>
+      <div class="timeline" id="timeline">
+        <div class="timeline-item">
+          <span class="year">点击 "开始模拟一生" 开始...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 名人人生剧本分析模块 ========== -->
+    <div class="chart-card celebrity-card" id="celebrity-card" style="margin-top:14px">
+      <h3>🌟 名人人生剧本分析 · 算他/她的『正确选择率』</h3>
+      <div class="tip">
+        💡 选一个预设模板（比如"周涛"）或填写任意名人。填好基础画像 + 关键人生分岔点后
+        点击"分析"，系统会把每条路径都跑一遍，告诉你：他哪些选对了？还有哪里能更好？
+      </div>
+
+      <div class="controls" style="margin-top:12px">
+        <label style="font-size:13px;color:#a0a4ff">选择模板：</label>
+        <select id="celeb-template" style="width:220px;padding:8px 10px;background:#2a2f5e;border:1px solid #3b3b7a;border-radius:6px;color:#e4e6ff;font-size:13px">
+          <option value="zhoutao">周涛（央视主持人）</option>
+          <option value="dongmingzhu">董明珠（格力）</option>
+          <option value="mayun">马云（阿里巴巴）</option>
+          <option value="zhangyiming">张一鸣（字节跳动）</option>
+          <option value="custom">自定义 / 自己填</option>
+        </select>
+        <button id="btn-load-celeb">📋 载入模板</button>
+        <button id="btn-clear-celeb" class="secondary">清空</button>
+      </div>
+
+      <div class="chart-row" style="margin-top:10px">
+        <div class="chart-card" style="min-height:auto">
+          <h3>🧑 名人基础画像</h3>
+          <div class="field"><label>姓名 <span id="celeb-out-name">—</span></label><input type="text" id="celeb-name" value=""></div>
+          <div class="field"><label>出生年份 <span id="celeb-out-birth">—</span></label><input type="number" id="celeb-birth" value=""></div>
+          <div class="field">
+            <label>最高学历</label>
+            <select id="celeb-edu">
+              <option value="文盲">文盲</option><option value="小学">小学</option>
+              <option value="初中">初中</option><option value="高中">高中</option>
+              <option value="职高">职高</option><option value="大专">大专</option>
+              <option value="本科" selected>本科</option><option value="硕士">硕士</option><option value="博士">博士</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>所在领域 / 行业</label>
+            <select id="celeb-field">
+              <option value="媒体/文艺" selected>媒体 / 文艺</option>
+              <option value="制造/实业">制造 / 实业</option>
+              <option value="互联网/科技">互联网 / 科技</option>
+              <option value="金融">金融</option>
+              <option value="学术/科研">学术 / 科研</option>
+              <option value="医疗">医疗</option>
+              <option value="教育">教育</option>
+              <option value="房地产">房地产</option>
+              <option value="公务员">公务员</option>
+              <option value="消费/零售">消费 / 零售</option>
+            </select>
+          </div>
+          <div class="field"><label>智商/学习能力 <span id="celeb-out-iq">80</span></label><input type="range" id="celeb-iq" min="0" max="100" value="80"></div>
+          <div class="field"><label>野心 <span id="celeb-out-ambition">80</span></label><input type="range" id="celeb-ambition" min="0" max="100" value="80"></div>
+          <div class="field"><label>自律 <span id="celeb-out-discipline">80</span></label><input type="range" id="celeb-discipline" min="0" max="100" value="80"></div>
+          <div class="field"><label>逆商 <span id="celeb-out-resilience">80</span></label><input type="range" id="celeb-resilience" min="0" max="100" value="80"></div>
+          <div class="field"><label>社交能力 <span id="celeb-out-social">80</span></label><input type="range" id="celeb-social" min="0" max="100" value="80"></div>
+          <div class="field"><label>风险偏好 <span id="celeb-out-risk">60</span></label><input type="range" id="celeb-risk" min="0" max="100" value="60"></div>
+          <div class="field"><label>健康基线 <span id="celeb-out-h0">75</span></label><input type="range" id="celeb-h0" min="0" max="100" value="75"></div>
+          <div class="field"><label>家庭财富起点 <span id="celeb-out-fw">50</span></label><input type="range" id="celeb-fw" min="0" max="100" value="50"></div>
+          <div class="field"><label>家庭社会资本 <span id="celeb-out-fs">50</span></label><input type="range" id="celeb-fs" min="0" max="100" value="50"></div>
+        </div>
+
+        <div class="chart-card" style="min-height:auto">
+          <h3>🔀 关键人生分岔点（实际路径 vs 可选路径）</h3>
+          <div class="tip">
+            每个岔路口填两条路：<b style="color:#ffd700">真实路径</b>（他实际走的）和
+            <b style="color:#4fd1ff">对比路径</b>（他可以走但没走的）。系统分别跑模拟来打分。
+            点击 "+ 添加岔路口" 可加更多。
+          </div>
+          <div id="forks-container" style="margin-top:10px"></div>
+          <button id="btn-add-fork" class="secondary" style="margin-top:8px">+ 添加岔路口</button>
+          <button id="btn-del-fork" class="secondary" style="margin-top:8px">- 删除最后一个</button>
+        </div>
+      </div>
+
+      <div class="controls" style="margin-top:12px;justify-content:center">
+        <button id="btn-analyze-celeb" style="padding:12px 40px;font-size:15px">▶ 开始分析 · 计算正确选择率</button>
+      </div>
+
+      <!-- ========== 分析结果区 ========== -->
+      <div id="celeb-result" style="margin-top:16px;display:none">
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi"><div class="label">综合排名（他实际走的路）</div><div class="value" id="celeb-kpi-rank">—</div><div class="sub" id="celeb-kpi-rank-sub">—</div></div>
+          <div class="kpi"><div class="label">综合得分</div><div class="value" id="celeb-kpi-score">—</div><div class="sub">满分约 100</div></div>
+          <div class="kpi"><div class="label">✨ 正确选择率</div><div class="value" id="celeb-kpi-rate">—</div><div class="sub" id="celeb-kpi-rate-sub">—</div></div>
+        </div>
+
+        <div class="chart-card" style="margin-top:12px;min-height:auto">
+          <h3>🏆 所有路径排名</h3>
+          <div id="celeb-ranking"></div>
+        </div>
+
+        <div class="chart-card" style="margin-top:12px;min-height:auto">
+          <h3>🔍 每个岔路口的选择复盘</h3>
+          <div id="celeb-forks"></div>
+        </div>
+
+        <div class="chart-card" style="margin-top:12px;min-height:auto">
+          <h3>💡 人生剧本综合建议</h3>
+          <div id="celeb-advice" class="timeline"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============ 右侧：中国宏观 + 策略对比 ============ -->
+  <aside class="panel right-panel">
+    <h2>🇨🇳 中国宏观经济与时代</h2>
+
+    <div class="panel-group">
+      <h3>时代场景预设</h3>
+      <div class="field">
+        <select id="in-scene">
+          <option value="cn2025" selected>中国 2025（新常态）</option>
+          <option value="cn2035">中国 2035（AI 高速发展 + 老龄化深化）</option>
+          <option value="cn2045">中国 2045（低增长 + 深度老龄化）</option>
+          <option value="cn1995">中国 1995（高速增长黄金期）</option>
+          <option value="cn_custom">自定义：按下方滑块</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel-group">
+      <h3>你编辑的宏观参数</h3>
+      <div class="macro-grid">
+        <div class="field">
+          <label>GDP 增速% <span id="out-gdp">4.5</span></label>
+          <input type="range" id="in-gdp" min="-2" max="12" step="0.1" value="4.5">
+        </div>
+        <div class="field">
+          <label>通胀% <span id="out-inflation">2.5</span></label>
+          <input type="range" id="in-inflation" min="-1" max="15" step="0.1" value="2.5">
+        </div>
+        <div class="field">
+          <label>失业率% <span id="out-unemp">5.2</span></label>
+          <input type="range" id="in-unemp" min="1" max="15" step="0.1" value="5.2">
+        </div>
+        <div class="field">
+          <label>工资增速% <span id="out-wage">4.5</span></label>
+          <input type="range" id="in-wage" min="0" max="15" step="0.1" value="4.5">
+        </div>
+        <div class="field">
+          <label>房价增速% <span id="out-house">1.5</span></label>
+          <input type="range" id="in-house" min="-10" max="20" step="0.1" value="1.5">
+        </div>
+        <div class="field">
+          <label>AI 渗透率 <span id="out-ai">35</span></label>
+          <input type="range" id="in-ai" min="0" max="100" value="35">
+        </div>
+        <div class="field">
+          <label>老龄化 65+% <span id="out-ageing">15.6</span></label>
+          <input type="range" id="in-ageing" min="5" max="45" step="0.1" value="15.6">
+        </div>
+        <div class="field">
+          <label>社会保障强度 <span id="out-safety">60</span></label>
+          <input type="range" id="in-safety" min="0" max="100" value="60">
+        </div>
+        <div class="field">
+          <label>教育回报率% <span id="out-eduret">11</span></label>
+          <input type="range" id="in-eduret" min="0" max="25" step="0.1" value="11">
+        </div>
+        <div class="field">
+          <label>学历贬值% <span id="out-edudec">7</span></label>
+          <input type="range" id="in-edudec" min="0" max="20" step="0.1" value="7">
+        </div>
+        <div class="field">
+          <label>贫富差距 <span id="out-gini">46.5</span></label>
+          <input type="range" id="in-gini" min="20" max="70" step="0.1" value="46.5">
+        </div>
+        <div class="field">
+          <label>政策稳定性 <span id="out-policy">75</span></label>
+          <input type="range" id="in-policy" min="0" max="100" value="75">
+        </div>
+        <div class="field">
+          <label>地缘风险 <span id="out-geo">55</span></label>
+          <input type="range" id="in-geo" min="0" max="100" value="55">
+        </div>
+        <div class="field">
+          <label>医疗体系强度 <span id="out-medicalsys">65</span></label>
+          <input type="range" id="in-medicalsys" min="0" max="100" value="65">
+        </div>
+      </div>
+      <div class="tip">
+        💡 所有宏观参数你都可以手动拨动。比如把 "AI 渗透率" 拉到 80，
+        看看低学历的人的命运会如何变化。
+      </div>
+    </div>
+
+    <!-- 策略对比面板 -->
+    <h2>📊 策略对比（同一人，不同策略）</h2>
+    <div id="strategy-compare">
+      <div class="strategy-row">
+        <div>策略</div>
+        <div>终局财富（相对）</div>
+        <div class="num">幸福</div>
+        <div class="num">失业年</div>
+      </div>
+      <div class="strategy-row">
+        <div class="name">稳定保守</div>
+        <div class="bar-container"><div class="bar" style="width: 0%"></div></div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+      </div>
+      <div class="strategy-row">
+        <div class="name">努力奋斗</div>
+        <div class="bar-container"><div class="bar" style="width: 0%"></div></div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+      </div>
+      <div class="strategy-row">
+        <div class="name">激进冒险</div>
+        <div class="bar-container"><div class="bar" style="width: 0%"></div></div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+      </div>
+      <div class="strategy-row">
+        <div class="name">平衡生活</div>
+        <div class="bar-container"><div class="bar" style="width: 0%"></div></div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+      </div>
+      <div class="strategy-row">
+        <div class="name">躺平低欲望</div>
+        <div class="bar-container"><div class="bar" style="width: 0%"></div></div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+      </div>
+    </div>
+
+    <div class="legend-strat" style="margin-top:14px">
+      <div><span class="dot" style="background:#ff6b9d"></span>财富最优</div>
+      <div><span class="dot" style="background:#4fd1ff"></span>幸福最优</div>
+    </div>
+  </aside>
+
+</div>
+
+<script src="fate_model.js"></script>
+</body>
+</html>
